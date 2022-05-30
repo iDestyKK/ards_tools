@@ -1,0 +1,6 @@
+[submodule "c/lib/CN_Map"]
+	path = c/lib/CN_Map
+	url = https://github.com/iDestyKK/CN_Map.git
+[submodule "c/lib/CN_Vec"]
+	path = c/lib/CN_Vec
+	url = https://github.com/iDestyKK/CN_Vec.git
