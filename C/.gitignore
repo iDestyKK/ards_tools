@@ -1,2 +1,9 @@
-# Data directory
+# Data directory and binary dumps used for testing
 data
+*.bin
+
+# Random object files
+*.o
+
+# VIM Swap Files
+.*.sw*
