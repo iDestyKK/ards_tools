@@ -120,9 +120,16 @@ void file_read_cheats_and_folders(
 		file_read_type(fp, uint16_t, tmp_data.flag       );
 		file_read_type(fp, uint16_t, tmp_data.num_entries);
 
-		// Add to vector and get a pointer
-		cn_vec_push_back(root, &tmp_data);
-		header = cn_vec_at(root, cn_vec_size(root) - 1);
+
+		if ((ar_flag_t) (tmp_data.flag & 0xFF) == AR_FLAG_TERMINATE) {
+			//If we hit the end, fake the header and prevent insertion
+			header = &tmp_data;
+		}
+		else {
+			// Add to vector and get a pointer
+			cn_vec_push_back(root, &tmp_data);
+			header = cn_vec_at(root, cn_vec_size(root) - 1);
+		}
 
 		// Act based on it being either a folder or cheat code
 		switch ((ar_flag_t) header->flag & 0xFF) {
@@ -225,6 +232,52 @@ void file_read_names(FILE *fp, CN_VEC root) {
 	}
 }
 
+void library_dump(FILE *out, CN_VEC root, size_t depth) {
+	ar_data_t *it;
+	ar_line_t *lt;
+
+	cn_vec_traverse(root, it) {
+		fprintf(
+			out,
+			(strlen(it->desc) == 0) ?
+				"%*s%s\n" :
+				"%*s%s (%s)\n",
+			depth << 2,
+			(depth == 0) ? "" : " ",
+			it->name,
+			it->desc
+		);
+
+		if (it->data != NULL) {
+			switch ((ar_flag_t) it->flag & 0xFF) {
+				case AR_FLAG_CODE:
+					// Print out all lines of the AR code
+					cn_vec_traverse(it->data, lt) {
+						fprintf(
+							out,
+							"%*s%08X %08X\n",
+							(depth + 1) << 2,
+							" ",
+							lt->memory_location,
+							lt->value
+						);
+					}
+					break;
+
+				case AR_FLAG_FOLDER1:
+				case AR_FLAG_FOLDER2:
+					// AR Folders are recursive
+					library_dump(out, it->data, depth + 1);
+					break;
+
+				case AR_FLAG_TERMINATE:
+				default:
+					break;
+			}
+		}
+	}
+}
+
 // ----------------------------------------------------------------------------
 // Main Function                                                           {{{1
 // ----------------------------------------------------------------------------
@@ -240,6 +293,7 @@ int main(int argc, char **argv) {
 	ar_game_info_t  header;   // Header
 	CN_VEC          library;  // Codes and Folders
 	char           *name;     // Game Name
+	char           *shit;     // lol
 
 	// Begin reading the contents of the file
 	fp = fopen(argv[1], "rb");
@@ -256,6 +310,7 @@ int main(int argc, char **argv) {
 
 	// Game name is first
 	name = file_read_string(fp);
+	shit = file_read_string(fp);
 
 	// Now unleash recursion and get everything else
 	file_read_names(fp, library);
@@ -263,9 +318,13 @@ int main(int argc, char **argv) {
 	// Close the file. We're done reading it
 	fclose(fp);
 
+	// Print everything out
+	library_dump(stdout, library, 0);
+
 	// Clean up all CNDS instances
 	root_obliterate(library);
 	free(name);
+	free(shit);
 
 	//We're done here
 	return 0;
