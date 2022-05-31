@@ -57,6 +57,7 @@ typedef struct AR_DATA_T {
 	uint16_t   flag;            // Good luck getting that ENUM to work here
 	uint16_t   num_entries;     // A line is 8 bytes, or "XXXXXXXX XXXXXXXX"
 	char      *name;            // Name of cheat/folder/whatever
+	char      *desc;            // Description
 	CN_VEC     data;            // Abuse CN_Vec for type-agnosticism via flag
 } ar_data_t;
 
@@ -138,32 +139,18 @@ void file_read_cheats_and_folders(
 			case AR_FLAG_CODE:
 				// It's an AR code.
 				// This means (8 * num_entries) bytes are read
-				for (k = 0; k < depth << 2; k++) printf(" ");
-				printf("New Code:\n");
-
 				header->data = cn_vec_init(ar_line_t);
 
 				// Read each line (TODO: easy fread optimisation)
 				for (j = 0; j < header->num_entries; j++) {
 					file_read_type(fp, ar_line_t, tmp_line);
 					cn_vec_push_back(header->data, &tmp_line);
-
-					for (k = 0; k < depth << 2; k++) printf(" ");
-					printf(
-						"    %08X %08X\n",
-						tmp_line.memory_location,
-						tmp_line.value
-					);
-					fflush(stdout);
 				}
 
 				break;
 
 			case AR_FLAG_FOLDER1:
 			case AR_FLAG_FOLDER2:
-				for (k = 0; k < depth << 2; k++) printf(" ");
-				printf("New Folder:\n");
-
 				header->data = cn_vec_init(ar_data_t);
 				file_read_cheats_and_folders(
 					fp,
@@ -187,7 +174,10 @@ void root_obliterate(CN_VEC root) {
 		if (it->name != NULL)
 			free(it->name);
 
-		if (it->data != NULL)
+		if (it->desc != NULL)
+			free(it->desc);
+
+		if (it->data != NULL) {
 			switch ((ar_flag_t) it->flag & 0xFF) {
 				case AR_FLAG_CODE:
 					// AR Code lists are just a list of ar_line_t
@@ -205,9 +195,34 @@ void root_obliterate(CN_VEC root) {
 					// These should never happen...
 					break;
 			}
+		}
 	}
 
 	cn_vec_free(root);
+}
+
+void file_read_names(FILE *fp, CN_VEC root) {
+	ar_data_t *it;
+
+	cn_vec_traverse(root, it) {
+		it->name = file_read_string(fp);
+		it->desc = file_read_string(fp);
+
+		if (it->data != NULL) {
+			switch ((ar_flag_t) it->flag & 0xFF) {
+				case AR_FLAG_FOLDER1:
+				case AR_FLAG_FOLDER2:
+					// AR Folders are recursive
+					file_read_names(fp, it->data);
+					break;
+
+				case AR_FLAG_TERMINATE:
+				case AR_FLAG_CODE:
+				default:
+					break;
+			}
+		}
+	}
 }
 
 // ----------------------------------------------------------------------------
@@ -224,6 +239,7 @@ int main(int argc, char **argv) {
 	FILE           *fp;       // File Pointer
 	ar_game_info_t  header;   // Header
 	CN_VEC          library;  // Codes and Folders
+	char           *name;     // Game Name
 
 	// Begin reading the contents of the file
 	fp = fopen(argv[1], "rb");
@@ -235,11 +251,21 @@ int main(int argc, char **argv) {
 	library = cn_vec_init(ar_data_t);
 	file_read_cheats_and_folders(fp, library, 0, 0);
 
+	// Jump to the end of the code bytes segment and start reading text
+	fseek(fp, header.code_bytes_size + 1, SEEK_SET);
+
+	// Game name is first
+	name = file_read_string(fp);
+
+	// Now unleash recursion and get everything else
+	file_read_names(fp, library);
+
 	// Close the file. We're done reading it
 	fclose(fp);
 
 	// Clean up all CNDS instances
 	root_obliterate(library);
+	free(name);
 
 	//We're done here
 	return 0;
