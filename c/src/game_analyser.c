@@ -21,10 +21,7 @@
 #include <stdint.h>
 
 // CNDS (Clara Nguyen's Data Structures)
-#include "../lib/CN_Map/cn_cmp.h"
-#include "../lib/CN_Map/cn_map.h"
 #include "../lib/CN_Vec/cn_vec.h"
-
 
 // ----------------------------------------------------------------------------
 // ARDS Data Structs                                                       {{{1
