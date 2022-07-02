@@ -31,14 +31,18 @@
 // ----------------------------------------------------------------------------
 
 typedef struct AR_GAME_INFO_T {
-	uint32_t idk1;            // 00 - 03
-	uint32_t idk2;            // 04 - 07
+	                          // Bytes    Description
+	                          // ---      ---
+	uint32_t magic;           // 00 - 03. Always "01 00 1C 00".
+	uint16_t num_codes;       // 04 - 05. Number of codes present
+	uint16_t nx20;            // 06 - 07. Always "20 00".
 	uint32_t code_bytes_size; // 08 - 11. Bytes between game_info_t to text - 1
-	uint32_t idk3;            // 12 - 15
-	uint32_t idk4;            // 16 - 19
-	char     ID[4];           // 20 - 23
-	uint32_t idk5;            // 24 - 27
-	uint32_t idk6;            // 28 - 31 (END)
+	uint32_t idk1;            // 12 - 15
+	uint16_t wDosDate;        // 16 - 17. DOS date (?)
+	uint16_t wDosTime;        // 18 - 19. DOS time (?)
+	char     ID[4];           // 20 - 23. 4 characters that appear on cartridge
+	uint32_t idk2;            // 24 - 27
+	uint32_t N_CRC32;         // 28 - 31. ~CRC32(first 512 bytes of ROM)
 } ar_game_info_t;
 
 typedef struct AR_LINE_T {
@@ -284,8 +288,8 @@ void library_dump(FILE *out, CN_VEC root, size_t depth) {
 
 int main(int argc, char **argv) {
 	// Argument check
-	if (argc != 2) {
-		fprintf(stderr, "usage: %s in.bin\n");
+	if (argc != 3) {
+		fprintf(stderr, "usage: %s IN_ARDS.nds IN_POS_HEX\n");
 		return 1;
 	}
 
@@ -294,9 +298,14 @@ int main(int argc, char **argv) {
 	CN_VEC          library;  // Codes and Folders
 	char           *name;     // Game Name
 	char           *shit;     // lol
+	uint32_t        pos_hex;  // Position to jump to in ROM
 
 	// Begin reading the contents of the file
 	fp = fopen(argv[1], "rb");
+
+	// Skip to specified section
+	sscanf(argv[2], "%x", &pos_hex);
+	fseek(fp, pos_hex, SEEK_SET);
 
 	// First 32 bytes are the header
 	file_read_type(fp, ar_game_info_t, header);
@@ -306,7 +315,7 @@ int main(int argc, char **argv) {
 	file_read_cheats_and_folders(fp, library, 0, 0);
 
 	// Jump to the end of the code bytes segment and start reading text
-	fseek(fp, header.code_bytes_size + 1, SEEK_SET);
+	fseek(fp, pos_hex + header.code_bytes_size + 1, SEEK_SET);
 
 	// Game name is first
 	name = file_read_string(fp);
