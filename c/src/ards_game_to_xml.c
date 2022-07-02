@@ -236,11 +236,21 @@ void file_read_names(FILE *fp, CN_VEC root) {
 	}
 }
 
-void library_dump(FILE *out, CN_VEC root, size_t depth) {
+// Helper to put in a bunch of tabs
+void tabs(FILE *out, size_t num) {
+	size_t i;
+
+	for (i = 0; i < num; i++)
+		fprintf(out, "\t");
+}
+
+void library_dump_as_xml_rec(FILE *out, CN_VEC root, size_t depth) {
 	ar_data_t *it;
 	ar_line_t *lt;
+	size_t i;
 
 	cn_vec_traverse(root, it) {
+		/*
 		fprintf(
 			out,
 			(strlen(it->desc) == 0) ?
@@ -251,27 +261,65 @@ void library_dump(FILE *out, CN_VEC root, size_t depth) {
 			it->name,
 			it->desc
 		);
+		*/
 
 		if (it->data != NULL) {
 			switch ((ar_flag_t) it->flag & 0xFF) {
 				case AR_FLAG_CODE:
+					tabs(out, depth + 2);
+					fprintf(out, "<cheat>\n");
+
+					tabs(out, depth + 3);
+					fprintf(out, "<name>%s</name>\n", it->name);
+
+					// If there is a note, add that too
+					if (strlen(it->desc) > 0) {
+						tabs(out, depth + 3);
+						fprintf(out, "<note>%s</note>\n", it->desc);
+					}
+
 					// Print out all lines of the AR code
+					tabs(out, depth + 3);
+					fprintf(out, "<codes>");
+
+					i = 0;
 					cn_vec_traverse(it->data, lt) {
 						fprintf(
 							out,
-							"%*s%08X %08X\n",
-							(depth + 1) << 2,
-							" ",
+							"%08X %08X%s",
 							lt->memory_location,
-							lt->value
+							lt->value,
+							(i + 1 == cn_vec_size(it->data)) ? "" : " "
 						);
+
+						i++;
 					}
+
+					fprintf(out, "</codes>\n");
+
+					tabs(out, depth + 2);
+					fprintf(out, "</cheat>\n");
 					break;
 
 				case AR_FLAG_FOLDER1:
 				case AR_FLAG_FOLDER2:
+					tabs(out, depth + 2);
+					fprintf(out, "<folder>\n");
+
+					tabs(out, depth + 3);
+					fprintf(out, "<name>%s</name>\n", it->name);
+
+					// If there is a note, add that too
+					if (strlen(it->desc) > 0) {
+						tabs(out, depth + 3);
+						fprintf(out, "<note>%s</note>\n", it->desc);
+					}
+
 					// AR Folders are recursive
-					library_dump(out, it->data, depth + 1);
+					library_dump_as_xml_rec(out, it->data, depth + 1);
+
+					tabs(out, depth + 2);
+					fprintf(out, "</folder>\n");
 					break;
 
 				case AR_FLAG_TERMINATE:
@@ -280,6 +328,52 @@ void library_dump(FILE *out, CN_VEC root, size_t depth) {
 			}
 		}
 	}
+}
+
+void library_dump_as_xml(
+	FILE          *out,
+	CN_VEC         root,
+	const char    *name,
+	ar_game_info_t header
+) {
+	// XML Begin
+	fprintf(out, "<?xml version = \"1.0\" encoding = \"UTF-8\"?>\n");
+	fprintf(out, "<codelist>\n");
+	fprintf(
+		out,
+		"\t<name>%s</name>\n",
+		"Extracted via CN_ARDS - ards_game_to_xml"
+	);
+
+	// Game Header
+	fprintf(out, "\t<game>\n");
+	fprintf(out, "\t\t<name>%s</name>\n", name);
+	fprintf(
+		out,
+		"\t\t<gameid>%.4s %08X</gameid>\n",
+		header.ID,
+		header.N_CRC32
+	);
+
+	// Date, if possible
+	if (header.wDosDate != 0 && header.wDosTime != 0) {
+		fprintf(
+			out,
+			"\t\t<date>%04d/%02d/%02d %02d:%02d</date>\n",
+			(header.wDosDate >>  9) + 1980,
+			(header.wDosDate >>  5) & 0xF,
+			(header.wDosDate      ) & 0x1F,
+			(header.wDosTime >> 11),
+			(header.wDosTime >>  5) & 0x3F
+		);
+	}
+
+	// Recursion
+	library_dump_as_xml_rec(out, root, 0);
+
+	// Closing
+	fprintf(out, "\t</game>\n");
+	fprintf(out, "</codelist>\n");
 }
 
 // ----------------------------------------------------------------------------
@@ -328,7 +422,7 @@ int main(int argc, char **argv) {
 	fclose(fp);
 
 	// Print everything out
-	library_dump(stdout, library, 0);
+	library_dump_as_xml(stdout, library, name, header);
 
 	// Clean up all CNDS instances
 	root_obliterate(library);
