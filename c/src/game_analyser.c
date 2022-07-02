@@ -282,7 +282,7 @@ void library_dump(FILE *out, CN_VEC root, size_t depth) {
 int main(int argc, char **argv) {
 	// Argument check
 	if (argc != 2) {
-		fprintf(stderr, "usage: %s in.bin\n");
+		fprintf(stderr, "usage: %s in.bin\n", argv[0]);
 		return 1;
 	}
 

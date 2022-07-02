@@ -289,7 +289,7 @@ void library_dump(FILE *out, CN_VEC root, size_t depth) {
 int main(int argc, char **argv) {
 	// Argument check
 	if (argc != 3) {
-		fprintf(stderr, "usage: %s IN_ARDS.nds IN_POS_HEX\n");
+		fprintf(stderr, "usage: %s IN_ARDS.nds IN_POS_HEX\n", argv[0]);
 		return 1;
 	}
 
