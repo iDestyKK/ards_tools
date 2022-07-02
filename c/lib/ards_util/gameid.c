@@ -90,4 +90,7 @@ void get_gameid(const char *fpath, char *out_buffer) {
 
 	// Generate the string
 	sprintf(out_buffer, "%s-%08X", ID_A, ~ID_B);
+
+	// Clean up
+	free(buffer);
 }
