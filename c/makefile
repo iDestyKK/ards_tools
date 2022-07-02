@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -g
+CFLAGS = -g --std=gnu89
 
 # Directories
 BIN = bin
