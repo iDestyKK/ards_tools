@@ -13,14 +13,14 @@ all: $(BIN)/game_analyser $(BIN)/get_gameid $(BIN)/ards_game_to_xml
 # Executables                                                              {{{1
 # -----------------------------------------------------------------------------
 
-$(BIN)/game_analyser: $(OBJ)/game_analyser.o $(OBJ)/cnds.a
+$(BIN)/game_analyser: $(OBJ)/game_analyser.o $(OBJ)/cn_vec.o
 	$(CC) $(CFLAGS) -o $@ $^
 
-$(BIN)/get_gameid: $(OBJ)/get_gameid.o $(OBJ)/ards_util.a
+$(BIN)/get_gameid: $(OBJ)/get_gameid.o $(OBJ)/ards_gameid.o
 	$(CC) $(CFLAGS) -o $@ $^
 
-$(BIN)/ards_game_to_xml: $(OBJ)/ards_game_to_xml.o $(OBJ)/cnds.a \
-                         $(OBJ)/ards_util.a
+$(BIN)/ards_game_to_xml: $(OBJ)/ards_game_to_xml.o $(OBJ)/cn_vec.o \
+                         $(OBJ)/ards_io.o
 	$(CC) $(CFLAGS) -o $@ $^
 
 # -----------------------------------------------------------------------------
@@ -40,13 +40,13 @@ $(OBJ)/ards_game_to_xml.o: $(SRC)/ards_game_to_xml.c
 # Libraries                                                                {{{1
 # -----------------------------------------------------------------------------
 
-# CNDS
-$(OBJ)/cnds.a: $(OBJ)/cn_map.o $(OBJ)/cn_cmp.o $(OBJ)/cn_vec.o
-	ar cr $@ $^
-
 # ARDS Utils
-$(OBJ)/ards_util.a: $(OBJ)/ards_gameid.o $(OBJ)/ards_io.o
-	ar cr $@ $^
+#$(OBJ)/ards_util.a: $(OBJ)/ards_gameid.o $(OBJ)/ards_io.o
+#	ar cr $@ $^
+
+# CNDS
+#$(OBJ)/cnds.a: $(OBJ)/cn_map.o $(OBJ)/cn_cmp.o $(OBJ)/cn_vec.o
+#	ar cr $@ $^
 
 # -----------------------------------------------------------------------------
 # Object Files (Libraries)                                                 {{{1
