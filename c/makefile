@@ -19,7 +19,8 @@ $(BIN)/game_analyser: $(OBJ)/game_analyser.o $(OBJ)/cnds.a
 $(BIN)/get_gameid: $(OBJ)/get_gameid.o $(OBJ)/ards_util.a
 	$(CC) $(CFLAGS) -o $@ $^
 
-$(BIN)/ards_game_to_xml: $(OBJ)/ards_game_to_xml.o $(OBJ)/cnds.a
+$(BIN)/ards_game_to_xml: $(OBJ)/ards_game_to_xml.o $(OBJ)/cnds.a \
+                         $(OBJ)/ards_util.a
 	$(CC) $(CFLAGS) -o $@ $^
 
 # -----------------------------------------------------------------------------
@@ -44,7 +45,7 @@ $(OBJ)/cnds.a: $(OBJ)/cn_map.o $(OBJ)/cn_cmp.o $(OBJ)/cn_vec.o
 	ar cr $@ $^
 
 # ARDS Utils
-$(OBJ)/ards_util.a: $(OBJ)/gameid.o
+$(OBJ)/ards_util.a: $(OBJ)/ards_gameid.o $(OBJ)/ards_io.o
 	ar cr $@ $^
 
 # -----------------------------------------------------------------------------
@@ -64,7 +65,11 @@ $(OBJ)/cn_vec.o: $(LIB)/CN_Vec/cn_vec.c $(LIB)/CN_Vec/cn_vec.h
 	$(CC) $(CFLAGS) -o $@ -c $<
 
 # ARDS/gameid
-$(OBJ)/gameid.o: $(LIB)/ards_util/gameid.c $(LIB)/ards_util/gameid.h
+$(OBJ)/ards_gameid.o: $(LIB)/ards_util/gameid.c $(LIB)/ards_util/gameid.h
+	$(CC) $(CFLAGS) -o $@ -c $<
+
+# ARDS/io
+$(OBJ)/ards_io.o: $(LIB)/ards_util/io.c $(LIB)/ards_util/io.h
 	$(CC) $(CFLAGS) -o $@ -c $<
 
 # -----------------------------------------------------------------------------
