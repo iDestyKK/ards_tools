@@ -7,7 +7,8 @@ OBJ = obj
 LIB = lib
 SRC = src
 
-all: $(BIN)/game_analyser $(BIN)/get_gameid $(BIN)/ards_game_to_xml
+all: $(BIN)/game_analyser $(BIN)/get_gameid $(BIN)/ards_game_to_xml \
+     $(BIN)/ards_game_ls
 
 # -----------------------------------------------------------------------------
 # Executables                                                              {{{1
@@ -23,6 +24,9 @@ $(BIN)/ards_game_to_xml: $(OBJ)/ards_game_to_xml.o $(OBJ)/cn_vec.o \
                          $(OBJ)/ards_io.o
 	$(CC) $(CFLAGS) -o $@ $^
 
+$(BIN)/ards_game_ls: $(OBJ)/ards_game_ls.o $(OBJ)/cn_vec.o $(OBJ)/ards_io.o
+	$(CC) $(CFLAGS) -o $@ $^
+
 # -----------------------------------------------------------------------------
 # Object Files (Applications)                                              {{{1
 # -----------------------------------------------------------------------------
@@ -34,6 +38,9 @@ $(OBJ)/get_gameid.o: $(SRC)/get_gameid.c
 	$(CC) $(CFLAGS) -o $@ -c $<
 
 $(OBJ)/ards_game_to_xml.o: $(SRC)/ards_game_to_xml.c
+	$(CC) $(CFLAGS) -o $@ -c $<
+
+$(OBJ)/ards_game_ls.o: $(SRC)/ards_game_ls.c
 	$(CC) $(CFLAGS) -o $@ -c $<
 
 # -----------------------------------------------------------------------------
