@@ -67,10 +67,11 @@ typedef struct AR_LINE_T {
  */
 
 typedef enum AR_FLAG_T {
-	AR_FLAG_TERMINATE = 0,
-	AR_FLAG_CODE      = 1,
-	AR_FLAG_FOLDER1   = 2,
-	AR_FLAG_FOLDER2   = 6
+	AR_FLAG_TERMINATE = 0x00,
+	AR_FLAG_CODE      = 0x01,
+	AR_FLAG_FOLDER1   = 0x02,
+	AR_FLAG_FOLDER2   = 0x06,
+	AR_FLAG_MASTER    = 0x11
 } ar_flag_t;
 
 /*
