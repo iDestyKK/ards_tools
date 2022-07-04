@@ -161,9 +161,8 @@ void ards_game_read(ARDS_GAME, FILE *, uint32_t);
  */
 
 // XML Export Functionality
-void ards_game_export_as_xml(ARDS_GAME, FILE *);
-void library_dump_as_xml    (FILE *, CN_VEC, const char *, ar_game_info_t);
-void library_dump_as_xml_rec(FILE *, CN_VEC, size_t);
+void ards_game_export_as_xml    (CN_VEC, FILE *);
+void ards_game_export_as_xml_rec(FILE *, CN_VEC, size_t);
 
 // ----------------------------------------------------------------------------
 // Cleanup Functions                                                       {{{1

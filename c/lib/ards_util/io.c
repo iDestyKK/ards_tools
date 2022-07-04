@@ -222,22 +222,10 @@ void ards_game_read(ar_game_t *obj, FILE *fp, uint32_t offset) {
  * Exports an ar_game_t object's contents as an XML file.
  */
 
-void ards_game_export_as_xml(ar_game_t *obj, FILE *fp) {
-	library_dump_as_xml(fp, obj->library, obj->name, obj->header);
-}
+void ards_game_export_as_xml(CN_VEC game_arr, FILE *out) {
+	ARDS_GAME *it;   // Iterator
+	ARDS_GAME  game; // Game pointer
 
-/*
- * library_dump_as_xml                                                     {{{2
- *
- * Exports the game's Action Replay code list as an XML file.
- */
-
-void library_dump_as_xml(
-	FILE          *out,
-	CN_VEC         root,
-	const char    *name,
-	ar_game_info_t header
-) {
 	// XML Begin
 	fprintf(out, "<?xml version = \"1.0\" encoding = \"UTF-8\"?>\n");
 	fprintf(out, "<codelist>\n");
@@ -247,45 +235,51 @@ void library_dump_as_xml(
 		"Extracted via CN_ARDS - ards_game_to_xml"
 	);
 
-	// Game Header
-	fprintf(out, "\t<game>\n");
-	fprintf(out, "\t\t<name>%s</name>\n", name);
-	fprintf(
-		out,
-		"\t\t<gameid>%.4s %08X</gameid>\n",
-		header.ID,
-		header.N_CRC32
-	);
+	cn_vec_traverse(game_arr, it) {
+		// Get the game
+		game = *it;
 
-	// Date, if possible
-	if (header.wDosDate != 0 && header.wDosTime != 0) {
+		// Game Header
+		fprintf(out, "\t<game>\n");
+		fprintf(out, "\t\t<name>%s</name>\n", game->name);
 		fprintf(
 			out,
-			"\t\t<date>%04d/%02d/%02d %02d:%02d</date>\n",
-			(header.wDosDate >>  9) + 1980,
-			(header.wDosDate >>  5) & 0xF,
-			(header.wDosDate      ) & 0x1F,
-			(header.wDosTime >> 11),
-			(header.wDosTime >>  5) & 0x3F
+			"\t\t<gameid>%.4s %08X</gameid>\n",
+			game->header.ID,
+			game->header.N_CRC32
 		);
+
+		// Date, if possible
+		if (game->header.wDosDate != 0 && game->header.wDosTime != 0) {
+			fprintf(
+				out,
+				"\t\t<date>%04d/%02d/%02d %02d:%02d</date>\n",
+				(game->header.wDosDate >>  9) + 1980,
+				(game->header.wDosDate >>  5) & 0xF,
+				(game->header.wDosDate      ) & 0x1F,
+				(game->header.wDosTime >> 11),
+				(game->header.wDosTime >>  5) & 0x3F
+			);
+		}
+
+		// Recursion
+		ards_game_export_as_xml_rec(out, game->library, 0);
+
+		fprintf(out, "\t</game>\n");
 	}
 
-	// Recursion
-	library_dump_as_xml_rec(out, root, 0);
-
 	// Closing
-	fprintf(out, "\t</game>\n");
 	fprintf(out, "</codelist>\n");
 }
 
 /*
- * library_dump_as_xml_rec                                                 {{{2
+ * ards_game_export_as_xml_rec                                             {{{2
  *
- * Recursive helper to "library_dump_as_xml". Goes through the code/folder tree
- * and exports everything to XML.
+ * Recursive helper to "ards_game_export_as_xml". Goes through the code/folder
+ * tree and exports everything to XML.
  */
 
-void library_dump_as_xml_rec(FILE *out, CN_VEC root, size_t depth) {
+void ards_game_export_as_xml_rec(FILE *out, CN_VEC root, size_t depth) {
 	ar_data_t *it;
 	ar_line_t *lt;
 	size_t i;
@@ -344,7 +338,7 @@ void library_dump_as_xml_rec(FILE *out, CN_VEC root, size_t depth) {
 					}
 
 					// AR Folders are recursive
-					library_dump_as_xml_rec(out, it->data, depth + 1);
+					ards_game_export_as_xml_rec(out, it->data, depth + 1);
 
 					__tabs(out, depth + 2);
 					fprintf(out, "</folder>\n");
