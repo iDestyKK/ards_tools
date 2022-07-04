@@ -105,7 +105,8 @@ int verify_code_segment(
 	size_t         len,
 	uint16_t       num_codes,
 	args_t        *args,
-	size_t        *err_pos
+	size_t        *err_pos,
+	uint8_t       *err_val
 ) {
 	size_t    pos, i, j, c_found;
 	ar_flag_t flag, in_flag;
@@ -126,6 +127,7 @@ int verify_code_segment(
 		// Act based on flag
 		switch (flag) {
 			case AR_FLAG_CODE:
+			case AR_FLAG_MASTER:
 				// All codes are 8 bytes. So n * 8.
 				pos += 8 * num;
 				c_found++;
@@ -140,7 +142,7 @@ int verify_code_segment(
 					in_flag = (ar_flag_t) (*(uint8_t  *) &buf[pos    ]);
 					in_num  =              *(uint16_t *) &buf[pos + 2] ;
 
-					if (in_flag != AR_FLAG_CODE) {
+					if (in_flag != AR_FLAG_CODE && in_flag != AR_FLAG_MASTER) {
 						// Flag inside folder was not a code
 						*err_pos = pos;
 						return 2;
@@ -171,7 +173,8 @@ int verify_code_segment(
 
 			default:
 				// Invalid flag was found
-				*err_pos = pos;
+				*err_pos = pos - 4;
+				*err_val = flag;
 				return 1;
 		}
 	}
@@ -200,6 +203,7 @@ int main(int argc, char **argv) {
 	FILE          *fp;
 	ar_game_info_t header;
 	size_t         pos, i, fsize, err_at;
+	uint8_t        err_val;
 	char          *name;
 	char          *shit;
 	unsigned char *buf;
@@ -258,10 +262,11 @@ int main(int argc, char **argv) {
 			header.code_bytes_size - 32,
 			header.num_codes,
 			&args,
-			&err_at
+			&err_at,
+			&err_val
 		);
 
-		free(buf);
+		//free(buf);
 
 		if (status != 0) {
 			fseek(fp, pos + 1, SEEK_SET);
@@ -270,11 +275,13 @@ int main(int argc, char **argv) {
 					case 1:
 						fprintf(
 							stderr,
-							"Error 0x%08x + 0x%08x: %s\n",
+							"Error 0x%08x + 0x%08x: %s (%d)\n",
 							pos,
 							err_at + 32,
-							"Invalid flag was found"
+							"Invalid flag was found",
+							err_val
 						);
+						while (1) {}
 						break;
 
 					case 2:
