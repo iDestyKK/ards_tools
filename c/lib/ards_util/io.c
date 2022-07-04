@@ -173,6 +173,40 @@ void file_read_names(FILE *fp, CN_VEC root) {
 	}
 }
 
+ARDS_GAME ards_game_init() {
+	ARDS_GAME obj = (ARDS_GAME) malloc(sizeof(struct AR_GAME_T));
+
+	// Default values
+	obj->library = NULL;
+	obj->name    = NULL;
+	obj->desc    = NULL;
+	obj->offset  = 0x00000000;
+
+	return obj;
+}
+
+void ards_game_read(ar_game_t *obj, FILE *fp, uint32_t offset) {
+	// Skip to specified section
+	fseek(fp, offset, SEEK_SET);
+
+	// First 32 bytes are the header
+	file_read_type(fp, ar_game_info_t, obj->header);
+
+	// Prepare data structure root and read all codes
+	obj->library = cn_vec_init(ar_data_t);
+	file_read_cheats_and_folders(fp, obj->library, 0, 0);
+
+	// Jump to the end of the code bytes segment and start reading text
+	fseek(fp, offset + obj->header.code_bytes_size + 1, SEEK_SET);
+
+	// Game information is first
+	obj->name = file_read_string(fp);
+	obj->desc = file_read_string(fp);
+
+	// Unleash recursion and get everything else
+	file_read_names(fp, obj->library);
+}
+
 // ----------------------------------------------------------------------------
 // ARDS Output Functions                                                   {{{1
 // ----------------------------------------------------------------------------
@@ -181,6 +215,16 @@ void file_read_names(FILE *fp, CN_VEC root) {
  * Provides export functionality to different formats. XML, JSON, basic output.
  * Can even be for writing a byte format compatible with ARDS in the future.
  */
+
+/*
+ * ards_game_export_as_xml                                                 {{{2
+ *
+ * Exports an ar_game_t object's contents as an XML file.
+ */
+
+void ards_game_export_as_xml(ar_game_t *obj, FILE *fp) {
+	library_dump_as_xml(fp, obj->library, obj->name, obj->header);
+}
 
 /*
  * library_dump_as_xml                                                     {{{2
@@ -318,7 +362,22 @@ void library_dump_as_xml_rec(FILE *out, CN_VEC root, size_t depth) {
 // Cleanup Functions                                                       {{{1
 // ----------------------------------------------------------------------------
 
-void root_obliterate(CN_VEC root) {
+void ards_game_free(ar_game_t *obj) {
+	// Clean up all codes
+	library_obliterate(obj->library);
+
+	// Clean up strings
+	if (obj->name != NULL)
+		free(obj->name);
+
+	if (obj->desc != NULL)
+		free(obj->desc);
+
+	// Clean self up
+	free(obj);
+}
+
+void library_obliterate(CN_VEC root) {
 	ar_data_t *it;
 
 	cn_vec_traverse(root, it) {
@@ -338,7 +397,7 @@ void root_obliterate(CN_VEC root) {
 				case AR_FLAG_FOLDER1:
 				case AR_FLAG_FOLDER2:
 					// AR Folders are recursive
-					root_obliterate(it->data);
+					library_obliterate(it->data);
 					break;
 
 				case AR_FLAG_TERMINATE:

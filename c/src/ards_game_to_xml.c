@@ -40,47 +40,28 @@ int main(int argc, char **argv) {
 		return 1;
 	}
 
-	FILE           *fp;       // File Pointer
-	ar_game_info_t  header;   // Header
-	CN_VEC          library;  // Codes and Folders
-	char           *name;     // Game Name
-	char           *shit;     // lol
-	uint32_t        pos_hex;  // Position to jump to in ROM
+	FILE     *fp;       // File Pointer
+	ARDS_GAME game;     // ARDS Game Object
+	uint32_t  pos_hex;  // Position to jump to in ROM
 
 	// Begin reading the contents of the file
 	fp = fopen(argv[1], "rb");
 
-	// Skip to specified section
+	// Setup file and ARDS_GAME instance
 	sscanf(argv[2], "%x", &pos_hex);
-	fseek(fp, pos_hex, SEEK_SET);
+	game = ards_game_init();
 
-	// First 32 bytes are the header
-	file_read_type(fp, ar_game_info_t, header);
-
-	// Prepare data structure root and read all codes
-	library = cn_vec_init(ar_data_t);
-	file_read_cheats_and_folders(fp, library, 0, 0);
-
-	// Jump to the end of the code bytes segment and start reading text
-	fseek(fp, pos_hex + header.code_bytes_size + 1, SEEK_SET);
-
-	// Game name is first
-	name = file_read_string(fp);
-	shit = file_read_string(fp);
-
-	// Now unleash recursion and get everything else
-	file_read_names(fp, library);
+	// Read game information at address "hex"
+	ards_game_read(game, fp, pos_hex);
 
 	// Close the file. We're done reading it
 	fclose(fp);
 
 	// Print everything out
-	library_dump_as_xml(stdout, library, name, header);
+	ards_game_export_as_xml(game, stdout);
 
 	// Clean up all CNDS instances
-	root_obliterate(library);
-	free(name);
-	free(shit);
+	ards_game_free(game);
 
 	//We're done here
 	return 0;

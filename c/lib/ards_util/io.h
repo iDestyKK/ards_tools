@@ -98,6 +98,23 @@ typedef struct AR_DATA_T {
  * for a more object-oriented development.
  */
 
+/*
+ * AR_GAME_T
+ *
+ * All-in-one struct for dealing with games. Each game will be in a struct like
+ * this. And then can be stored in a CN_Vec. This can allow for mass exporting
+ * in a single XML file, or more. All functions with the "ards_game_" prefix
+ * will deal with this struct.
+ */
+
+typedef struct AR_GAME_T {
+	ar_game_info_t header;  // First 32 bytes
+	CN_VEC         library; // All codes/folders, binary and text included
+	char          *name;    // Name of game
+	char          *desc;    // Unused
+	uint32_t       offset;  // Offset of game location in ROM memory
+} ar_game_t, *ARDS_GAME;
+
 // ----------------------------------------------------------------------------
 // File Reading Helpers                                                    {{{1
 // ----------------------------------------------------------------------------
@@ -131,6 +148,9 @@ void __tabs(FILE *, size_t);
 void file_read_cheats_and_folders(FILE *, CN_VEC, uint16_t, uint8_t);
 void file_read_names(FILE *, CN_VEC);
 
+ARDS_GAME ards_game_init();
+void ards_game_read(ARDS_GAME, FILE *, uint32_t);
+
 // ----------------------------------------------------------------------------
 // ARDS Output Functions                                                   {{{1
 // ----------------------------------------------------------------------------
@@ -141,6 +161,7 @@ void file_read_names(FILE *, CN_VEC);
  */
 
 // XML Export Functionality
+void ards_game_export_as_xml(ARDS_GAME, FILE *);
 void library_dump_as_xml    (FILE *, CN_VEC, const char *, ar_game_info_t);
 void library_dump_as_xml_rec(FILE *, CN_VEC, size_t);
 
@@ -152,6 +173,7 @@ void library_dump_as_xml_rec(FILE *, CN_VEC, size_t);
  * Provides cleanup for other functions here.
  */
 
-void root_obliterate(CN_VEC);
+void ards_game_free(ARDS_GAME);
+void library_obliterate(CN_VEC);
 
 #endif
