@@ -22,6 +22,76 @@
 #include "../lib/ards_util/io.h"
 
 // ----------------------------------------------------------------------------
+// Verification Functions                                                  {{{1
+// ----------------------------------------------------------------------------
+
+int verify_code_segment(unsigned char *buf, size_t len, uint16_t num_codes) {
+	size_t    pos, i, j, c_found;
+	ar_flag_t flag, in_flag;
+	uint16_t  num , in_num ;
+
+	// For every code...
+	for (i = pos = c_found = 0; i < num_codes; i++) {
+		if (pos > len)
+			// Exceeded buffer size
+			return 3;
+
+		// Code/Folder header via reinterpret casting
+		flag = (ar_flag_t) (*(uint8_t  *) &buf[pos    ]);
+		num  =              *(uint16_t *) &buf[pos + 2] ;
+
+		pos += 4;
+
+		// Act based on flag
+		switch (flag) {
+			case AR_FLAG_CODE:
+				// All codes are 8 bytes. So n * 8.
+				pos += 8 * num;
+				c_found++;
+
+				break;
+
+			case AR_FLAG_FOLDER1:
+			case AR_FLAG_FOLDER2:
+				// ARDS doesn't allow nested folders. Cheat and avoid recursion
+				for (j = 0; j < num; j++) {
+					// They better be codes or else...
+					in_flag = (ar_flag_t) (*(uint8_t  *) &buf[pos    ]);
+					in_num  =              *(uint16_t *) &buf[pos + 2] ;
+
+					if (in_flag != AR_FLAG_CODE)
+						// Flag inside folder was not a code
+						return 2;
+
+					pos += 4 + (8 * in_num);
+					c_found++;
+
+					if (c_found == num_codes && j < num - 1)
+						// More codes than mentioned in header
+						return 4;
+				}
+
+				break;
+
+			case AR_FLAG_TERMINATE:
+				if (c_found == num_codes)
+					return 0;
+				else
+					// More codes than mentioned in header
+					return 4;
+				break;
+
+			default:
+				// Invalid flag was found
+				return 1;
+		}
+	}
+
+	// Nothing is wrong
+	return 0;
+}
+
+// ----------------------------------------------------------------------------
 // Main Function                                                           {{{1
 // ----------------------------------------------------------------------------
 
@@ -39,6 +109,7 @@ int main(int argc, char **argv) {
 	char          *name;
 	char          *shit;
 	unsigned char *buf;
+	int            status;
 
 	// Defaults
 	name = NULL;
@@ -77,8 +148,27 @@ int main(int argc, char **argv) {
 			continue;
 		}
 
+		// Read bytes segment and check if it's correct
+		buf = (unsigned char *)
+			malloc(sizeof(unsigned char) * header.code_bytes_size - 32);
+
+		fread(&buf[0], sizeof(unsigned char), header.code_bytes_size - 32, fp);
+
+		status = verify_code_segment(
+			buf,
+			header.code_bytes_size - 32,
+			header.num_codes
+		);
+
+		free(buf);
+
+		if (status != 0) {
+			fseek(fp, pos + 1, SEEK_SET);
+			continue;
+		}
+
 		// Read name, if possible
-		fseek(fp, header.code_bytes_size - 31, SEEK_CUR);
+		fseek(fp, 1, SEEK_CUR);
 
 		if (name != NULL) free(name); name = file_read_string(fp);
 		if (shit != NULL) free(shit); shit = file_read_string(fp);
