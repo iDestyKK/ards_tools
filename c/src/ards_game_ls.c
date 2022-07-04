@@ -230,7 +230,7 @@ int main(int argc, char **argv) {
 		pos = ftell(fp);
 
 		if (pos & 0x000FFFFF < 0x54000) {
-			pos = (pos & 0xFFF00000) + 0x54000;
+			pos = (pos & 0xFFF00000) | 0x54000;
 			fseek(fp, pos, SEEK_SET);
 		}
 
