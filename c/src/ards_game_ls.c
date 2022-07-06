@@ -129,6 +129,7 @@ int verify_code_segment(
 			case AR_FLAG_CODE:
 			case AR_FLAG_MASTER:
 				// All codes are 8 bytes. So n * 8.
+				printf("FOUND CODE FLAG:%d (%d / %d)\n", flag, c_found + 1, num_codes);
 				pos += 8 * num;
 				c_found++;
 
@@ -281,7 +282,6 @@ int main(int argc, char **argv) {
 							"Invalid flag was found",
 							err_val
 						);
-						while (1) {}
 						break;
 
 					case 2:
