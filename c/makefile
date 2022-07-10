@@ -24,7 +24,8 @@ $(BIN)/ards_game_to_xml: $(OBJ)/ards_game_to_xml.o $(OBJ)/cn_vec.o \
                          $(OBJ)/ards_io.o
 	$(CC) $(CFLAGS) -o $@ $^
 
-$(BIN)/ards_game_ls: $(OBJ)/ards_game_ls.o $(OBJ)/cn_vec.o $(OBJ)/ards_io.o
+$(BIN)/ards_game_ls: $(OBJ)/ards_game_ls.o $(OBJ)/cn_vec.o $(OBJ)/cn_cmp.o \
+                     $(OBJ)/cn_map.o $(OBJ)/ards_io.o
 	$(CC) $(CFLAGS) -o $@ $^
 
 # -----------------------------------------------------------------------------
