@@ -21,21 +21,47 @@
 // ARDS Utils
 #include "../lib/ards_util/io.h"
 
+// CNDS (Clara Nguyen's Data Structures)
+#include "../lib/CN_Map/cn_cmp.h"
+#include "../lib/CN_Map/cn_map.h"
+
+// ----------------------------------------------------------------------------
+// CNDS Configuration Functions                                            {{{1
+// ----------------------------------------------------------------------------
+
+/*
+ * Map destructor for freeing a C-String key in a CN_Map.
+ */
+
+void destruct_key(CNM_NODE *node) {
+	char *v = *(char **) node->key;
+
+	if (v != NULL)
+		free(v);
+}
+
 // ----------------------------------------------------------------------------
 // Basic Argument Parser                                                   {{{1
 // ----------------------------------------------------------------------------
 
 typedef struct ARGS_T {
-	uint8_t flag_error,
-	        flag_skip_name;
+	uint8_t flag_allow_dup,
+	        flag_error,
+	        flag_skip_name,
+	        flag_warning;
 } args_t;
 
 void print_help(int argc, char **argv) {
-	printf("usage: %s [-ehn] IN_ARDS.nds\n", argv[0]);
+	printf("usage: %s [-dehnw] IN_ARDS.nds\n", argv[0]);
 	printf("Listing utility for game addresses in an Action Replay DS ROM "
 		"dump.\n\n");
 
 	printf("Optional arguments are:\n\n");
+
+	printf("\t-d\tAllow duplicates. Won't skip reading the same game even if "
+		"it's present\n\t\tin multiple locations in the same ROM. By "
+		"default, duplicates are\n\t\tskipped, and it's determined by the "
+		"Game ID (XXXX-YYYYYYYY).\n\n");
 
 	printf("\t-e\tPrints errors. By default, this will only print out games "
 		"where a code\n\t\tsection check looks correct. With this flag, it"
@@ -47,7 +73,10 @@ void print_help(int argc, char **argv) {
 	printf("\t-n\tSkips name reading. By default, this will read a game "
 		"header, validate\n\t\tthe code section, and then run 2n C-Style "
 		"string reads. This argument\n\t\ttells it to skip the final step "
-		"and try to read the next game through\n\t\tthose string sections.\n");
+		"and try to read the next game through\n\t\tthose string "
+		"sections.\n\n");
+
+	printf("\t-w\tShows warnings while reading. Prints to stderr.\n");
 
 	exit(0);
 }
@@ -56,8 +85,10 @@ void parse_flags(int argc, char **argv, args_t *obj) {
 	int i, j, len;
 
 	// Defaults
+	obj->flag_allow_dup = 0;
 	obj->flag_error     = 0;
 	obj->flag_skip_name = 0;
+	obj->flag_warning   = 0;
 
 	// Go through every argument and read characters
 	for (i = 1; i < argc; i++) {
@@ -68,6 +99,11 @@ void parse_flags(int argc, char **argv, args_t *obj) {
 		len = strlen(argv[i]);
 		for (j = 1; j < len; j++) {
 			switch (argv[i][j]) {
+				case 'd':
+					// Allow duplicate games
+					obj->flag_allow_dup = 1;
+					break;
+
 				case 'e':
 					// Show errors
 					obj->flag_error = 1;
@@ -82,6 +118,12 @@ void parse_flags(int argc, char **argv, args_t *obj) {
 					// Skips name reading
 					obj->flag_skip_name = 1;
 					break;
+
+				case 'w':
+					// Show warnings
+					obj->flag_warning = 1;
+					break;
+
 				default:
 					// Invalid Flag
 					fprintf(
@@ -190,7 +232,7 @@ int verify_code_segment(
 int main(int argc, char **argv) {
 	// Argument check
 	if (argc < 2) {
-		fprintf(stderr, "usage: %s [-ehn] IN_ARDS.nds\n", argv[0]);
+		fprintf(stderr, "usage: %s [-dehnw] IN_ARDS.nds\n", argv[0]);
 
 		return 1;
 	}
@@ -207,11 +249,21 @@ int main(int argc, char **argv) {
 	char          *name;
 	char          *shit;
 	unsigned char *buf;
-	int            status;
+	int            status, printable;
+
+	CN_MAP         game_ids;
+	CNM_ITERATOR   game_id_it;
+	char          *game_id_key, *key_tmp, dummy;
 
 	// Defaults
-	name = NULL;
-	shit = NULL;
+	name        = NULL;
+	shit        = NULL;
+	game_id_key = (char *) calloc(14, sizeof(char));
+	key_tmp     = NULL;
+
+	// Setup CNDS for keeping track of Game IDs
+	game_ids = cn_map_init(char *, char, cn_cmp_cstr);
+	cn_map_set_func_destructor(game_ids, destruct_key);
 
 	// Setup file for traversal
 	// The first argument without a "-" is the filename.
@@ -251,6 +303,37 @@ int main(int argc, char **argv) {
 			continue;
 		}
 
+		// Check if duplicate, and only if the flag "-d" isn't specified
+		if (!args.flag_allow_dup) {
+			// Read in the Game ID (XXXX-YYYYYYYY)
+			sprintf(game_id_key, "%.4s-%08X", header.ID, header.N_CRC32);
+
+			// Search for duplicates
+			cn_map_find(game_ids, &game_id_it, &game_id_key);
+
+			if (cn_map_at_end(game_ids, &game_id_it)) {
+				// No duplicates found. Insert into the CN_Map
+				key_tmp = strdup(game_id_key);
+				cn_map_insert(game_ids, &key_tmp, &dummy);
+
+				printable = 1;
+			}
+			else {
+				// Duplicate was found. Still process, but don't print.
+				printable = 0;
+
+				if (args.flag_warning) {
+					fprintf(
+						stderr,
+						"Warning 0x%08x: Duplicate Game ID \"%.4s-%08X\"\n",
+						pos,
+						header.ID,
+						header.N_CRC32
+					);
+				}
+			}
+		}
+
 		// Read bytes segment and check if it's correct
 		buf = (unsigned char *)
 			malloc(sizeof(unsigned char) * header.code_bytes_size - 32);
@@ -266,7 +349,7 @@ int main(int argc, char **argv) {
 			&err_val
 		);
 
-		//free(buf);
+		free(buf);
 
 		if (status != 0) {
 			fseek(fp, pos + 1, SEEK_SET);
@@ -334,7 +417,8 @@ int main(int argc, char **argv) {
 		if (shit != NULL) free(shit); shit = file_read_string(fp);
 
 		// Print
-		printf("0x%08x - %s\n", pos, name);
+		if (printable)
+			printf("0x%08x - %s\n", pos, name);
 
 		// Skip all codes afterwards
 		if (args.flag_skip_name != 1) {
@@ -348,8 +432,11 @@ int main(int argc, char **argv) {
 	// We're done here. Clean up
 	fclose(fp);
 
-	if (name != NULL) free(name);
-	if (shit != NULL) free(shit);
+	if (name        != NULL) free(name       );
+	if (shit        != NULL) free(shit       );
+	if (game_id_key != NULL) free(game_id_key);
+
+	cn_map_free(game_ids);
 
 	// Have a nice day
 	return 0;
