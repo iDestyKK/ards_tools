@@ -8,7 +8,7 @@ LIB = lib
 SRC = src
 
 all: $(BIN)/game_analyser $(BIN)/get_gameid $(BIN)/ards_game_to_xml \
-     $(BIN)/ards_game_ls $(BIN)/ards_mem_eval
+     $(BIN)/ards_game_ls $(BIN)/ards_mem_eval $(BIN)/ards_firm_checksum
 
 # -----------------------------------------------------------------------------
 # Executables                                                              {{{1
@@ -31,6 +31,9 @@ $(BIN)/ards_game_ls: $(OBJ)/ards_game_ls.o $(OBJ)/cn_vec.o $(OBJ)/cn_cmp.o \
 $(BIN)/ards_mem_eval: $(OBJ)/ards_mem_eval.o
 	$(CC) $(CFLAGS) -o $@ $^
 
+$(BIN)/ards_firm_checksum: $(OBJ)/ards_firm_checksum.o $(OBJ)/ards_firmware.o
+	$(CC) $(CFLAGS) -o $@ $^
+
 # -----------------------------------------------------------------------------
 # Object Files (Applications)                                              {{{1
 # -----------------------------------------------------------------------------
@@ -49,6 +52,9 @@ $(OBJ)/ards_game_ls.o: $(SRC)/ards_game_ls.c
 
 $(OBJ)/ards_mem_eval.o: $(SRC)/ards_mem_eval.c
 	$(CC) $(CFLAGS) -o $@ -c $<
+
+$(OBJ)/ards_firm_checksum.o: $(SRC)/ards_firm_checksum.c
+	$(CC) $(CFLAGS) -o $@ -c $^
 
 # -----------------------------------------------------------------------------
 # Libraries                                                                {{{1
@@ -84,6 +90,10 @@ $(OBJ)/ards_gameid.o: $(LIB)/ards_util/gameid.c $(LIB)/ards_util/gameid.h
 
 # ARDS/io
 $(OBJ)/ards_io.o: $(LIB)/ards_util/io.c $(LIB)/ards_util/io.h
+	$(CC) $(CFLAGS) -o $@ -c $<
+
+# ARDS/firmware
+$(OBJ)/ards_firmware.o: $(LIB)/ards_util/firmware.c $(LIB)/ards_util/firmware.h
 	$(CC) $(CFLAGS) -o $@ -c $<
 
 # -----------------------------------------------------------------------------
