@@ -21,7 +21,7 @@
 int main(int argc, char **argv) {
 	// Argument check
 	if (argc != 2) {
-		fprintf(stderr, "usage: %s ARDS_IN.nds\n", argv[0]);
+		fprintf(stderr, "usage: %s ARDS_FIRMWARE.bin\n", argv[0]);
 		return 1;
 	}
 
