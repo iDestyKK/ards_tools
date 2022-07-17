@@ -8,7 +8,8 @@ LIB = lib
 SRC = src
 
 all: $(BIN)/game_analyser $(BIN)/get_gameid $(BIN)/ards_game_to_xml \
-     $(BIN)/ards_game_ls $(BIN)/ards_mem_eval $(BIN)/ards_firm_checksum
+     $(BIN)/ards_game_ls $(BIN)/ards_mem_eval $(BIN)/ards_firm_checksum \
+     $(BIN)/ards_firm_extract
 
 # -----------------------------------------------------------------------------
 # Executables                                                              {{{1
@@ -34,6 +35,9 @@ $(BIN)/ards_mem_eval: $(OBJ)/ards_mem_eval.o
 $(BIN)/ards_firm_checksum: $(OBJ)/ards_firm_checksum.o $(OBJ)/ards_firmware.o
 	$(CC) $(CFLAGS) -o $@ $^
 
+$(BIN)/ards_firm_extract: $(OBJ)/ards_firm_extract.o $(OBJ)/ards_firmware.o
+	$(CC) $(CFLAGS) -o $@ $^
+
 # -----------------------------------------------------------------------------
 # Object Files (Applications)                                              {{{1
 # -----------------------------------------------------------------------------
@@ -54,6 +58,9 @@ $(OBJ)/ards_mem_eval.o: $(SRC)/ards_mem_eval.c
 	$(CC) $(CFLAGS) -o $@ -c $<
 
 $(OBJ)/ards_firm_checksum.o: $(SRC)/ards_firm_checksum.c
+	$(CC) $(CFLAGS) -o $@ -c $^
+
+$(OBJ)/ards_firm_extract.o: $(SRC)/ards_firm_extract.c
 	$(CC) $(CFLAGS) -o $@ -c $^
 
 # -----------------------------------------------------------------------------
