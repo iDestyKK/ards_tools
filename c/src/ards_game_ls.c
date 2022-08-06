@@ -304,7 +304,12 @@ int data_iterate(int argc, char **argv, args_t *args) {
 		title = file_read_string(fp);
 
 		// Print info
-		printf("0x%08x - %s\n", 0x40000 + (it->location << 8), title);
+		printf(
+			"0x%08x - %s - %s\n",
+			0x40000 + (it->location << 8),
+			it->ID.raw,
+			title
+		);
 
 		// Clean up title, since we are done with it
 		free(title);
@@ -502,7 +507,7 @@ int data_rescue(int argc, char **argv, args_t *args) {
 
 		// Print
 		if (printable)
-			printf("0x%08x - %s\n", pos, name);
+			printf("0x%08x - %s - %s\n", pos, game_id_key, name);
 
 		// Skip all codes afterwards
 		if (args->flag_skip_name != 1) {
