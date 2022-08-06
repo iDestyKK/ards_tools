@@ -28,6 +28,39 @@
  */
 
 /*
+ * AR_GAME_LIST/NODE
+ *
+ * Array wrapper for 32-byte chunks stored at 0x00044000. It's a code list.
+ */
+
+/* List Node Struct */
+typedef struct AR_GAME_LIST_NODE {
+	                               // Bytes    Description
+	                               // ---      ---
+	uint32_t magic;                // 00 - 03. Always "00 00 00 00" if game.
+
+	union {
+		char raw[24];              // 04 - 27. Entire Game ID as C-String
+		struct {                   // -----------------------------------------
+			char     ID_LEFT[4];   // 04 - 07. 4 characters on cartridge
+			char     sep;          // 08 - 08. Always "-" (0x2D). Separator
+			char     ID_NCRC32[8]; // 09 - 16. ~CRC32(first 512 bytes of ROM)
+			char     null_term;    // 17 - 17. Terminates ID C-String above.
+			char     extra[10];    // 18 - 27. Remaining Buffer
+		} segment;
+	} ID;
+
+	uint16_t location;             // 28 - 29. 0x40000 + (location << 8)
+	uint16_t chunks;               // 30 - 31. Number of 0x100 byte chunks
+} ar_game_list_node;
+
+/* List Node Wrapper */
+typedef struct AR_GAME_LIST_T {
+	size_t             num_games;
+	ar_game_list_node *games;
+} ar_game_list_t;
+
+/*
  * AR_GAME_INFO_T
  *
  * The first 32 bytes of a game's code section.
