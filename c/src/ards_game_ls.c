@@ -22,6 +22,7 @@
 #include "../lib/ards_util/io.h"
 
 // CNDS (Clara Nguyen's Data Structures)
+#include "../lib/CN_Vec/cn_vec.h"
 #include "../lib/CN_Map/cn_cmp.h"
 #include "../lib/CN_Map/cn_map.h"
 
@@ -48,11 +49,12 @@ typedef struct ARGS_T {
 	uint8_t flag_allow_dup,
 	        flag_error,
 	        flag_skip_name,
+			flag_rescue,
 	        flag_warning;
 } args_t;
 
 void print_help(int argc, char **argv) {
-	printf("usage: %s [-dehnw] IN_ARDS.nds\n", argv[0]);
+	printf("usage: %s [-dehnrw] IN_ARDS.nds\n", argv[0]);
 	printf("Listing utility for game addresses in an Action Replay DS ROM "
 		"dump.\n\n");
 
@@ -76,6 +78,10 @@ void print_help(int argc, char **argv) {
 		"and try to read the next game through\n\t\tthose string "
 		"sections.\n\n");
 
+	printf("\t-r\tRescue mode. Skips the game list and tries to search for "
+		"games via a\n\t\tdeep search. Brute force. Searches all bytes after "
+		"0x00054000. Will be\n\t\tmuch slower.\n\n");
+
 	printf("\t-w\tShows warnings while reading. Prints to stderr.\n");
 
 	exit(0);
@@ -88,6 +94,7 @@ void parse_flags(int argc, char **argv, args_t *obj) {
 	obj->flag_allow_dup = 0;
 	obj->flag_error     = 0;
 	obj->flag_skip_name = 0;
+	obj->flag_rescue    = 0;
 	obj->flag_warning   = 0;
 
 	// Go through every argument and read characters
@@ -117,6 +124,11 @@ void parse_flags(int argc, char **argv, args_t *obj) {
 				case 'n':
 					// Skips name reading
 					obj->flag_skip_name = 1;
+					break;
+
+				case 'r':
+					// Enter Rescue Mode
+					obj->flag_rescue = 1;
 					break;
 
 				case 'w':
@@ -226,22 +238,94 @@ int verify_code_segment(
 }
 
 // ----------------------------------------------------------------------------
-// Main Function                                                           {{{1
+// Regular Mode                                                            {{{1
 // ----------------------------------------------------------------------------
 
-int main(int argc, char **argv) {
-	// Argument check
-	if (argc < 2) {
-		fprintf(stderr, "usage: %s [-dehnw] IN_ARDS.nds\n", argv[0]);
+/*
+ * Use game list at 0x00044000 to get location of each game. Then jump to each
+ * spot to get game information.
+ */
 
-		return 1;
+int data_iterate(int argc, char **argv, args_t *args) {
+	FILE *fp;
+	ar_game_list_node header_list, *it;
+	ar_game_info_t    header_game;
+	CN_VEC game_list;  // vector<ar_game_list_node>
+
+	char *title;
+	size_t i;
+
+	title = NULL;
+
+	// Prepare CN_Vec for insertion of "ar_game_list_node"s
+	game_list = cn_vec_init(ar_game_list_node);
+
+	// Setup file for traversal
+	// The first argument without a "-" is the filename.
+	for (i = 1; i < argc; i++) {
+		if (argv[i][0] != '-')
+			break;
+	}
+	fp = fopen(argv[i], "rb");
+
+	// The code list is at 0x00044000
+	fseek(fp, 0x44000, SEEK_SET);
+
+	// Read in "ar_game_list_node"s until "FF FF FF FF"
+	while (1) {
+		// Read 32 bytes
+		fread(&header_list, sizeof(struct AR_GAME_LIST_NODE), 1, fp);
+
+		// Check header
+		if (header_list.magic == 0xFFFFFFFFU) {
+			// FF FF FF FF = End of list
+			break;
+		}
+		else
+		if (header_list.magic != 0x00000000U) {
+			// Anything other than "00 00 00 00" = not a game
+			continue;
+		}
+
+		// Guaranteed to be "00 00 00 00" at this point. Insert into CN_VEC
+		cn_vec_push_back(game_list, &header_list);
 	}
 
-	// Parse arguments
-	args_t args;
+	// Now go through each game and print out information
+	cn_vec_traverse(game_list, it) {
+		// Jump to spot in memory
+		fseek(fp, 0x40000 + (it->location << 8), SEEK_SET);
 
-	parse_flags(argc, argv, &args);
+		// Read in the game header (32 bytes)
+		fread(&header_game, sizeof(struct AR_GAME_INFO_T), 1, fp);
 
+		// Jump to the title and read the name of the game
+		fseek(fp, header_game.code_bytes_size - 32 + 1, SEEK_CUR);
+		title = file_read_string(fp);
+
+		// Print info
+		printf("0x%08x - %s\n", 0x40000 + (it->location << 8), title);
+
+		// Clean up title, since we are done with it
+		free(title);
+	}
+
+	// Clean up
+	fclose(fp);
+	cn_vec_free(game_list);
+}
+
+// ----------------------------------------------------------------------------
+// Rescue Mode                                                             {{{1
+// ----------------------------------------------------------------------------
+
+/*
+ * Search bytes from 0x00054000 onwards in each chunk for information on codes.
+ * This bypasses the code list at 0x00044000 entirely and tries to make sense
+ * out of bytes and magic numbers it finds.
+ */
+
+int data_rescue(int argc, char **argv, args_t *args) {
 	FILE          *fp;
 	ar_game_info_t header;
 	size_t         pos, i, fsize, err_at;
@@ -304,7 +388,7 @@ int main(int argc, char **argv) {
 		}
 
 		// Check if duplicate, and only if the flag "-d" isn't specified
-		if (!args.flag_allow_dup) {
+		if (!args->flag_allow_dup) {
 			// Read in the Game ID (XXXX-YYYYYYYY)
 			sprintf(game_id_key, "%.4s-%08X", header.ID, header.N_CRC32);
 
@@ -322,7 +406,7 @@ int main(int argc, char **argv) {
 				// Duplicate was found. Still process, but don't print.
 				printable = 0;
 
-				if (args.flag_warning) {
+				if (args->flag_warning) {
 					fprintf(
 						stderr,
 						"Warning 0x%08x: Duplicate Game ID \"%.4s-%08X\"\n",
@@ -344,7 +428,7 @@ int main(int argc, char **argv) {
 			buf,
 			header.code_bytes_size - 32,
 			header.num_codes,
-			&args,
+			args,
 			&err_at,
 			&err_val
 		);
@@ -353,7 +437,7 @@ int main(int argc, char **argv) {
 
 		if (status != 0) {
 			fseek(fp, pos + 1, SEEK_SET);
-			if (args.flag_error == 1) {
+			if (args->flag_error == 1) {
 				switch (status) {
 					case 1:
 						fprintf(
@@ -421,7 +505,7 @@ int main(int argc, char **argv) {
 			printf("0x%08x - %s\n", pos, name);
 
 		// Skip all codes afterwards
-		if (args.flag_skip_name != 1) {
+		if (args->flag_skip_name != 1) {
 			for (i = 0; i < header.num_codes; i++) {
 				if (shit != NULL) free(shit); shit = file_read_string(fp);
 				if (shit != NULL) free(shit); shit = file_read_string(fp);
@@ -438,6 +522,31 @@ int main(int argc, char **argv) {
 
 	cn_map_free(game_ids);
 
-	// Have a nice day
+	return 0;
+}
+
+// ----------------------------------------------------------------------------
+// Main Function                                                           {{{1
+// ----------------------------------------------------------------------------
+
+int main(int argc, char **argv) {
+	// Argument check
+	if (argc < 2) {
+		fprintf(stderr, "usage: %s [-dehnrw] IN_ARDS.nds\n", argv[0]);
+
+		return 1;
+	}
+
+	// Parse arguments
+	args_t args;
+
+	parse_flags(argc, argv, &args);
+
+	if (args.flag_rescue)
+		return data_rescue(argc, argv, &args);
+	else
+		return data_iterate(argc, argv, &args);
+
+	// Have a nice day, except this shouldn't ever happen
 	return 0;
 }
