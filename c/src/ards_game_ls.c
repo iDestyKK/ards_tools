@@ -179,24 +179,22 @@ int verify_code_segment(
 		pos += 4;
 
 		// Act based on flag
-		switch (flag) {
+		switch (flag & 0x03) {
 			case AR_FLAG_CODE:
-			case AR_FLAG_MASTER:
 				// All codes are 8 bytes. So n * 8.
 				pos += 8 * num;
 				c_found++;
 
 				break;
 
-			case AR_FLAG_FOLDER1:
-			case AR_FLAG_FOLDER2:
+			case AR_FLAG_FOLDER:
 				// ARDS doesn't allow nested folders. Cheat and avoid recursion
 				for (j = 0; j < num; j++) {
 					// They better be codes or else...
 					in_flag = (ar_flag_t) (*(uint8_t  *) &buf[pos    ]);
 					in_num  =              *(uint16_t *) &buf[pos + 2] ;
 
-					if (in_flag != AR_FLAG_CODE && in_flag != AR_FLAG_MASTER) {
+					if ((in_flag & 0x03) != AR_FLAG_CODE) {
 						// Flag inside folder was not a code
 						*err_pos = pos;
 						return 2;

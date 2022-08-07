@@ -102,7 +102,10 @@ void file_read_cheats_and_folders(
 		}
 		else {
 			// If it's a folder and blank, just ignore it
-			if ((tmp_data.flag & 0x03) == 0x02 && tmp_data.num_entries == 0)
+			if (
+				(tmp_data.flag & 0x03) == AR_FLAG_FOLDER &&
+				tmp_data.num_entries == 0
+			)
 				continue;
 
 			// Add to vector and get a pointer
@@ -111,7 +114,7 @@ void file_read_cheats_and_folders(
 		}
 
 		// Act based on it being either a folder or cheat code
-		switch ((ar_flag_t) header->flag & 0xFF) {
+		switch ((ar_flag_t) header->flag & 0x03) {
 			case AR_FLAG_TERMINATE:
 				/*
 				 * Go back 4 bytes and make previous call re-read so recursion
@@ -123,7 +126,6 @@ void file_read_cheats_and_folders(
 				return;
 
 			case AR_FLAG_CODE:
-			case AR_FLAG_MASTER:
 				// It's an AR code.
 				// This means (8 * num_entries) bytes are read
 				header->data = cn_vec_init(ar_line_t);
@@ -136,8 +138,7 @@ void file_read_cheats_and_folders(
 
 				break;
 
-			case AR_FLAG_FOLDER1:
-			case AR_FLAG_FOLDER2:
+			case AR_FLAG_FOLDER:
 				header->data = cn_vec_init(ar_data_t);
 				file_read_cheats_and_folders(
 					fp,
@@ -162,9 +163,8 @@ void file_read_names(FILE *fp, CN_VEC root) {
 		it->desc = file_read_string(fp);
 
 		if (it->data != NULL) {
-			switch ((ar_flag_t) it->flag & 0xFF) {
-				case AR_FLAG_FOLDER1:
-				case AR_FLAG_FOLDER2:
+			switch ((ar_flag_t) it->flag & 0x03) {
+				case AR_FLAG_FOLDER:
 					// AR Folders are recursive
 					file_read_names(fp, it->data);
 					break;
@@ -291,9 +291,8 @@ void ards_game_export_as_xml_rec(FILE *out, CN_VEC root, size_t depth) {
 
 	cn_vec_traverse(root, it) {
 		if (it->data != NULL) {
-			switch ((ar_flag_t) it->flag & 0xFF) {
+			switch ((ar_flag_t) it->flag & 0x03) {
 				case AR_FLAG_CODE:
-				case AR_FLAG_MASTER:
 					__tabs(out, depth + 2);
 					fprintf(out, "<cheat>\n");
 
@@ -311,7 +310,7 @@ void ards_game_export_as_xml_rec(FILE *out, CN_VEC root, size_t depth) {
 					fprintf(out, "<codes>");
 
 					// If a Master Code, put "master" before the code hex
-					if (((ar_flag_t) it->flag & 0xFF) == AR_FLAG_MASTER) {
+					if ((ar_flag_t) it->flag & AR_FLAG_MASTER) {
 						fprintf(
 							out,
 							"master%s",
@@ -338,8 +337,7 @@ void ards_game_export_as_xml_rec(FILE *out, CN_VEC root, size_t depth) {
 					fprintf(out, "</cheat>\n");
 					break;
 
-				case AR_FLAG_FOLDER1:
-				case AR_FLAG_FOLDER2:
+				case AR_FLAG_FOLDER:
 					__tabs(out, depth + 2);
 					fprintf(out, "<folder>\n");
 
@@ -353,7 +351,7 @@ void ards_game_export_as_xml_rec(FILE *out, CN_VEC root, size_t depth) {
 					}
 
 					// Radio Button Folder (only 1 code allowed on at once)
-					if (((ar_flag_t) it->flag & 0xFF) == AR_FLAG_FOLDER2) {
+					if ((ar_flag_t) it->flag & AR_FLAG_ONLYONE) {
 						__tabs(out, depth + 3);
 						fprintf(out, "<allowedon>1</allowedon>\n");
 					}
@@ -403,14 +401,13 @@ void library_obliterate(CN_VEC root) {
 			free(it->desc);
 
 		if (it->data != NULL) {
-			switch ((ar_flag_t) it->flag & 0xFF) {
+			switch ((ar_flag_t) it->flag & 0x03) {
 				case AR_FLAG_CODE:
 					// AR Code lists are just a list of ar_line_t
 					cn_vec_free(it->data);
 					break;
 
-				case AR_FLAG_FOLDER1:
-				case AR_FLAG_FOLDER2:
+				case AR_FLAG_FOLDER:
 					// AR Folders are recursive
 					library_obliterate(it->data);
 					break;
