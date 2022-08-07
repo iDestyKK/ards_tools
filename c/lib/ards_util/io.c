@@ -337,6 +337,12 @@ void ards_game_export_as_xml_rec(FILE *out, CN_VEC root, size_t depth) {
 						fprintf(out, "<note>%s</note>\n", it->desc);
 					}
 
+					// Radio Button Folder (only 1 code allowed on at once)
+					if (((ar_flag_t) it->flag & 0xFF) == AR_FLAG_FOLDER2) {
+						__tabs(out, depth + 3);
+						fprintf(out, "<allowedon>1</allowedon>\n");
+					}
+
 					// AR Folders are recursive
 					ards_game_export_as_xml_rec(out, it->data, depth + 1);
 
