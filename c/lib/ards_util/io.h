@@ -72,12 +72,12 @@ typedef struct AR_GAME_INFO_T {
 	uint32_t magic;           // 00 - 03. Always "01 00 1C 00".
 	uint16_t num_codes;       // 04 - 05. Number of codes present
 	uint16_t nx20;            // 06 - 07. Always "20 00".
-	uint32_t code_bytes_size; // 08 - 11. Bytes between game_info_t to text - 1
-	uint32_t idk1;            // 12 - 15
+	uint32_t offset_text;     // 08 - 11. Bytes between game_info_t to text - 1
+	uint32_t offset_strlen;   // 12 - 15. Bytes between game_info_t to strlen
 	uint16_t wDosDate;        // 16 - 17. DOS date (?)
 	uint16_t wDosTime;        // 18 - 19. DOS time (?)
 	char     ID[4];           // 20 - 23. 4 characters that appear on cartridge
-	uint32_t idk2;            // 24 - 27
+	uint32_t idk;             // 24 - 27
 	uint32_t N_CRC32;         // 28 - 31. ~CRC32(first 512 bytes of ROM)
 } ar_game_info_t;
 

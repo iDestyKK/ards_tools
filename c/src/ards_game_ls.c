@@ -300,7 +300,7 @@ int data_iterate(int argc, char **argv, args_t *args) {
 		fread(&header_game, sizeof(struct AR_GAME_INFO_T), 1, fp);
 
 		// Jump to the title and read the name of the game
-		fseek(fp, header_game.code_bytes_size - 32 + 1, SEEK_CUR);
+		fseek(fp, header_game.offset_text - 32 + 1, SEEK_CUR);
 		title = file_read_string(fp);
 
 		// Print info
@@ -425,13 +425,13 @@ int data_rescue(int argc, char **argv, args_t *args) {
 
 		// Read bytes segment and check if it's correct
 		buf = (unsigned char *)
-			malloc(sizeof(unsigned char) * header.code_bytes_size - 32);
+			malloc(sizeof(unsigned char) * header.offset_text - 32);
 
-		fread(&buf[0], sizeof(unsigned char), header.code_bytes_size - 32, fp);
+		fread(&buf[0], sizeof(unsigned char), header.offset_text - 32, fp);
 
 		status = verify_code_segment(
 			buf,
-			header.code_bytes_size - 32,
+			header.offset_text - 32,
 			header.num_codes,
 			args,
 			&err_at,

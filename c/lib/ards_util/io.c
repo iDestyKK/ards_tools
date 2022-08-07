@@ -202,7 +202,7 @@ void ards_game_read(ar_game_t *obj, FILE *fp, uint32_t offset) {
 	file_read_cheats_and_folders(fp, obj->library, 0, 0);
 
 	// Jump to the end of the code bytes segment and start reading text
-	fseek(fp, offset + obj->header.code_bytes_size + 1, SEEK_SET);
+	fseek(fp, offset + obj->header.offset_text + 1, SEEK_SET);
 
 	// Game information is first
 	obj->name = file_read_string(fp);
