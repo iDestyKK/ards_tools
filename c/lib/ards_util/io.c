@@ -287,11 +287,14 @@ void ards_game_export_as_xml(CN_VEC game_arr, FILE *out) {
 void ards_game_export_as_xml_rec(FILE *out, CN_VEC root, size_t depth) {
 	ar_data_t *it;
 	ar_line_t *lt;
+	ar_flag_t  flag;
 	size_t i;
 
 	cn_vec_traverse(root, it) {
 		if (it->data != NULL) {
-			switch ((ar_flag_t) it->flag & 0x03) {
+			flag = (ar_flag_t) it->flag;
+
+			switch (flag & 0x03) {
 				case AR_FLAG_CODE:
 					__tabs(out, depth + 2);
 					fprintf(out, "<cheat>\n");
@@ -310,12 +313,32 @@ void ards_game_export_as_xml_rec(FILE *out, CN_VEC root, size_t depth) {
 					fprintf(out, "<codes>");
 
 					// If a Master Code, put "master" before the code hex
-					if ((ar_flag_t) it->flag & AR_FLAG_MASTER) {
+					if (flag & AR_FLAG_MASTER) {
 						fprintf(
 							out,
 							"master%s",
 							(cn_vec_size(it->data) > 0) ? " " : ""
 						);
+					}
+
+					if (flag & AR_FLAG_ON_DEFAULT) {
+						// "Always On" assumes "On by Default", so check that
+						if (flag & AR_FLAG_ON_ALWAYS) {
+							// always_on
+							fprintf(
+								out,
+								"always_on%s",
+								(cn_vec_size(it->data) > 0) ? " " : ""
+							);
+						}
+						else {
+							// on
+							fprintf(
+								out,
+								"on%s",
+								(cn_vec_size(it->data) > 0) ? " " : ""
+							);
+						}
 					}
 
 					i = 0;
@@ -351,7 +374,7 @@ void ards_game_export_as_xml_rec(FILE *out, CN_VEC root, size_t depth) {
 					}
 
 					// Radio Button Folder (only 1 code allowed on at once)
-					if ((ar_flag_t) it->flag & AR_FLAG_ONLYONE) {
+					if (flag & AR_FLAG_ONLYONE) {
 						__tabs(out, depth + 3);
 						fprintf(out, "<allowedon>1</allowedon>\n");
 					}
