@@ -101,6 +101,10 @@ void file_read_cheats_and_folders(
 			header = &tmp_data;
 		}
 		else {
+			// If it's a folder and blank, just ignore it
+			if ((tmp_data.flag & 0x03) == 0x02 && tmp_data.num_entries == 0)
+				continue;
+
 			// Add to vector and get a pointer
 			cn_vec_push_back(root, &tmp_data);
 			header = cn_vec_at(root, cn_vec_size(root) - 1);
@@ -119,6 +123,7 @@ void file_read_cheats_and_folders(
 				return;
 
 			case AR_FLAG_CODE:
+			case AR_FLAG_MASTER:
 				// It's an AR code.
 				// This means (8 * num_entries) bytes are read
 				header->data = cn_vec_init(ar_line_t);
@@ -288,6 +293,7 @@ void ards_game_export_as_xml_rec(FILE *out, CN_VEC root, size_t depth) {
 		if (it->data != NULL) {
 			switch ((ar_flag_t) it->flag & 0xFF) {
 				case AR_FLAG_CODE:
+				case AR_FLAG_MASTER:
 					__tabs(out, depth + 2);
 					fprintf(out, "<cheat>\n");
 
@@ -303,6 +309,15 @@ void ards_game_export_as_xml_rec(FILE *out, CN_VEC root, size_t depth) {
 					// Print out all lines of the AR code
 					__tabs(out, depth + 3);
 					fprintf(out, "<codes>");
+
+					// If a Master Code, put "master" before the code hex
+					if (((ar_flag_t) it->flag & 0xFF) == AR_FLAG_MASTER) {
+						fprintf(
+							out,
+							"master%s",
+							(cn_vec_size(it->data) > 0) ? " " : ""
+						);
+					}
 
 					i = 0;
 					cn_vec_traverse(it->data, lt) {
