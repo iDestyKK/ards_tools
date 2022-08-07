@@ -190,6 +190,10 @@ int verify_code_segment(
 			case AR_FLAG_FOLDER:
 				// ARDS doesn't allow nested folders. Cheat and avoid recursion
 				for (j = 0; j < num; j++) {
+					if (pos > len)
+						// Exceeded buffer size
+						return 3;
+
 					// They better be codes or else...
 					in_flag = (ar_flag_t) (*(uint8_t  *) &buf[pos    ]);
 					in_num  =              *(uint16_t *) &buf[pos + 2] ;
@@ -423,13 +427,13 @@ int data_rescue(int argc, char **argv, args_t *args) {
 
 		// Read bytes segment and check if it's correct
 		buf = (unsigned char *)
-			malloc(sizeof(unsigned char) * header.offset_text - 32);
+			malloc(sizeof(unsigned char) * header.offset_strlen - 32);
 
-		fread(&buf[0], sizeof(unsigned char), header.offset_text - 32, fp);
+		fread(&buf[0], sizeof(unsigned char), header.offset_strlen - 32, fp);
 
 		status = verify_code_segment(
 			buf,
-			header.offset_text - 32,
+			header.offset_strlen - 32,
 			header.num_codes,
 			args,
 			&err_at,
@@ -498,7 +502,7 @@ int data_rescue(int argc, char **argv, args_t *args) {
 		}
 
 		// Read name, if possible
-		fseek(fp, 1, SEEK_CUR);
+		fseek(fp, pos + header.offset_text + 1, SEEK_SET);
 
 		if (name != NULL) free(name); name = file_read_string(fp);
 		if (shit != NULL) free(shit); shit = file_read_string(fp);
