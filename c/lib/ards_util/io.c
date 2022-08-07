@@ -290,7 +290,7 @@ void ards_game_export_as_xml_rec(FILE *out, CN_VEC root, size_t depth) {
 	ar_flag_t  flag;
 	size_t i;
 
-	cn_vec_traverse(root, it) {
+	cn_vec_rtraverse(root, it) {
 		if (it->data != NULL) {
 			flag = (ar_flag_t) it->flag;
 
